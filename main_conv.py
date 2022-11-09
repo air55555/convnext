@@ -120,7 +120,7 @@ for file in files:
         labels = imagenet_labels[str(int(top5_indices[i]))]
         prob = "{:.2f}%".format(float(top5_prob[i])*100)
         print(labels, prob)
-        if prob>50:
+        if top5_prob[i]>0.5:
             string = filename
             string = np.append(string, labels)
             string = np.append(string,prob)
