@@ -1,0 +1,5 @@
+torch
+torchvision
+timm==0.5.4
+matplotlib
+tqdm
