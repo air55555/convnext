@@ -8,7 +8,7 @@ import csv
 import numpy as np
 import os
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import matplotlib.pyplot as plt
 import PIL
 from PIL import Image
@@ -52,7 +52,7 @@ def create_convnext_model():
       print("Let's use", torch.cuda.device_count(), "GPUs!")
     has_cuda = torch.cuda.is_available()
     device = torch.device('cpu' if not has_cuda else 'cuda')
-    device = torch.device('cuda:{}'.format(ordinal))
+    #device = torch.device('cuda:{}'.format(ordinal))
     model_name = "convnext_xlarge_in22k"
     #device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print("device for convnext = ", device)
@@ -93,11 +93,11 @@ convnext_model, transforms, convnext_device = create_convnext_model()
 
 
 
-
-files = glob.glob("S:/good_imgs/1/*.jpg")#s:/content/*.jpg
+files = glob.glob("c:/Users/LRS/PycharmProjects/stable-diffusion/generated-images/bible_live/samples/*.jpg")
+#files = glob.glob("S:/good_imgs/1/*.jpg")#s:/content/*.jpg
 files.sort(key=os.path.getmtime,reverse=True)
 
-f = open("s:/content/labels.csv", 'a', newline='')
+f = open("s:/labels.csv", 'a', newline='')
 writer = csv.writer(f)
 
 string = str(datetime.now()).replace(" ", "|")
@@ -115,14 +115,16 @@ for file in files:
         pass
     top5_prob = top5.values[0]
     top5_indices = top5.indices[0]
-    string = filename
+
     for i in range(5):
         labels = imagenet_labels[str(int(top5_indices[i]))]
         prob = "{:.2f}%".format(float(top5_prob[i])*100)
         print(labels, prob)
-        string = np.append(string, labels)
-        string = np.append(string,prob)
-    f = open("s:/content/labels.csv", 'a', newline='')
+        if prob>50:
+            string = filename
+            string = np.append(string, labels)
+            string = np.append(string,prob)
+    f = open("s:/labels.csv", 'a', newline='')
     writer = csv.writer(f)
     writer.writerow(string)
     f.close()
