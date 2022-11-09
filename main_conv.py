@@ -47,12 +47,12 @@ def check_image(filename):
     writer.writerow(string)
     f.close()
 def create_convnext_model():
-    ordinal='2'
+    ordinal='0'
     if torch.cuda.device_count() > 1:
       print("Let's use", torch.cuda.device_count(), "GPUs!")
     has_cuda = torch.cuda.is_available()
     device = torch.device('cpu' if not has_cuda else 'cuda')
-    #device = torch.device('cuda:{}'.format(ordinal))
+    device = torch.device('cuda:{}'.format(ordinal))
     model_name = "convnext_xlarge_in22k"
     #device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print("device for convnext = ", device)
@@ -87,7 +87,7 @@ def get_description(fname):
     top5 = torch.topk(output, k=5)
 
     return top5
-
+prob_lim = float(sys.argv[1])
 imagenet_labels = json.load(open('label_to_words.json'))
 convnext_model, transforms, convnext_device = create_convnext_model()
 
@@ -97,12 +97,12 @@ files = glob.glob("c:/Users/LRS/PycharmProjects/stable-diffusion/generated-image
 #files = glob.glob("S:/good_imgs/1/*.jpg")#s:/content/*.jpg
 files.sort(key=os.path.getmtime,reverse=True)
 
-f = open("s:/labels.csv", 'a', newline='')
+f = open("s:/labels.csv", 'w', newline='')
 writer = csv.writer(f)
 
 string = str(datetime.now()).replace(" ", "|")
 string = np.append(string, " ---start-----")
-
+string =["path","f","label","prob"]
 writer.writerow(string)
 f.close()
 for file in files:
@@ -120,14 +120,16 @@ for file in files:
         labels = imagenet_labels[str(int(top5_indices[i]))]
         prob = "{:.2f}%".format(float(top5_prob[i])*100)
         print(labels, prob)
-        if top5_prob[i]>0.5:
-            string = filename
-            string = np.append(string, labels)
-            string = np.append(string,prob)
-    f = open("s:/labels.csv", 'a', newline='')
-    writer = csv.writer(f)
-    writer.writerow(string)
-    f.close()
+        if float(top5_prob[i]) > prob_lim:
+            if labels!="picture frame":
+                string = filename
+                string = np.append(string,os.path.basename(filename))
+                string = np.append(string, labels)
+                string = np.append(string,prob)
+                f = open("s:/labels.csv", 'a', newline='')
+                writer = csv.writer(f)
+                writer.writerow(string)
+                f.close()
     #time.sleep(5)
 #plt.imshow(img)
 
