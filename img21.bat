@@ -1,0 +1,1 @@
+C:\Users\LRS\PycharmProjects\yolov7\venv\Scripts\python.exe C:/Users/LRS/PycharmProjects/convnext/img21_detector.py 0.4
