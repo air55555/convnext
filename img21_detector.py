@@ -40,7 +40,8 @@ print("done")
 
 files = glob.glob("c:/Users/LRS/PycharmProjects/stable-diffusion/generated-images/bible_live/samples/*.jpg")
 #files = glob.glob("S:/good_imgs/1/*.jpg")#s:/content/*.jpg
-files.sort(key=os.path.getmtime,reverse=True)
+
+#files.sort(key=os.path.getmtime,reverse=True)
 
 f = open("s:/labels21.csv", 'w', newline='')
 writer = csv.writer(f)

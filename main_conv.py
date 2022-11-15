@@ -95,7 +95,8 @@ convnext_model, transforms, convnext_device = create_convnext_model()
 
 files = glob.glob("c:/Users/LRS/PycharmProjects/stable-diffusion/generated-images/bible_live/samples/*.jpg")
 #files = glob.glob("S:/good_imgs/1/*.jpg")#s:/content/*.jpg
-files.sort(key=os.path.getmtime,reverse=True)
+
+#files.sort(key=os.path.getmtime,reverse=True)
 
 f = open("s:/labels.csv", 'w', newline='')
 writer = csv.writer(f)
