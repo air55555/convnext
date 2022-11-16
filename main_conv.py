@@ -87,13 +87,16 @@ def get_description(fname):
     top5 = torch.topk(output, k=5)
 
     return top5
+
+
 prob_lim = float(sys.argv[1])
+path = sys.argv[2]
 imagenet_labels = json.load(open('label_to_words.json'))
 convnext_model, transforms, convnext_device = create_convnext_model()
 
 
 
-files = glob.glob("c:/Users/LRS/PycharmProjects/stable-diffusion/generated-images/bible_live/samples/*.jpg")
+files = glob.glob(path)
 #files = glob.glob("S:/good_imgs/1/*.jpg")#s:/content/*.jpg
 
 #files.sort(key=os.path.getmtime,reverse=True)

@@ -18,6 +18,7 @@ from src_files.semantic.semantics import ImageNet21kSemanticSoftmax
 import timm,sys
 import numpy as np
 prob_lim = float(sys.argv[1])
+path = sys.argv[2]
 ############### Downloading metadata ##############
 print("downloading metadata...")
 url, filename = (
@@ -38,7 +39,7 @@ config = resolve_data_config({}, model=model)
 transform = create_transform(**config)
 print("done")
 
-files = glob.glob("c:/Users/LRS/PycharmProjects/stable-diffusion/generated-images/bible_live/samples/*.jpg")
+files = glob.glob(path)
 #files = glob.glob("S:/good_imgs/1/*.jpg")#s:/content/*.jpg
 
 #files.sort(key=os.path.getmtime,reverse=True)
@@ -93,17 +94,17 @@ for file in files:
             f.close()
 
 ############## Visualization ##############
-import matplotlib
-import os
-import numpy as np
-
-if os.name == 'nt':
-    matplotlib.use('TkAgg')
-else:
-    matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-
-plt.imshow(img)
-plt.axis('off')
-plt.title('Semantic labels found: \n {}'.format(np.array(labels)))
-plt.show()
+# import matplotlib
+# import os
+# import numpy as np
+#
+# if os.name == 'nt':
+#     matplotlib.use('TkAgg')
+# else:
+#     matplotlib.use('Agg')
+# import matplotlib.pyplot as plt
+#
+# plt.imshow(img)
+# plt.axis('off')
+# plt.title('Semantic labels found: \n {}'.format(np.array(labels)))
+# plt.show()

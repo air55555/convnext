@@ -14,14 +14,14 @@ from utils.general import check_img_size, check_requirements, check_imshow, non_
 from utils.plots import plot_one_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
 import glob,os
-
+import shutil
 def detect(save_img=False):
     yolo_path = "C:/Users/LRS/PycharmProjects/convnext/runs/detect/bible"
-
-    files = glob.glob(yolo_path + "/labels/*")
-    #files = []
-    for f in files:
-        os.remove(f)
+    shutil.rmtree(yolo_path, ignore_errors=False, onerror=None)
+    # files = glob.glob(yolo_path + "/labels/*")
+    # #files = []
+    # for f in files:
+    #     os.remove(f)
 
     source, weights, view_img, save_txt, imgsz, trace = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size, not opt.no_trace
     save_img = not opt.nosave and not source.endswith('.txt')  # save inference images
