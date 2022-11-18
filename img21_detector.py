@@ -4,10 +4,13 @@
 # Licensed under MIT License [see the LICENSE file for details]
 # Written by Tal Ridnik
 # --------------------------------------------------------
+import os
 import glob,csv
 from datetime import datetime
+#os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+#os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
-import os
+
 import urllib
 from argparse import Namespace
 import torch

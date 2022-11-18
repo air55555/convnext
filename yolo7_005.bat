@@ -1,0 +1,1 @@
+C:\Users\LRS\PycharmProjects\yolov7\venv\Scripts\python.exe C:/Users/LRS/PycharmProjects/convnext/detect_yolo.py --weights yolov7-e6e.pt --save-txt  --exist-ok --conf 0.005 --source c:\Users\LRS\PycharmProjects\stable-diffusion\generated-images\bible_live\samples\ --device 3 --name bible --save-conf --augment
