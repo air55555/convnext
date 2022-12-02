@@ -36,7 +36,8 @@ print("done")
 
 ############### Loading (ViT) model from timm package ##############
 print("initilizing model...")
-model = timm.create_model('vit_base_patch16_224_miil_in21k', pretrained=True)
+model = timm.create_model('vit_base_patch16_224_miil_in21k', pretrained=True)#.cuda()
+model = torch.nn.DataParallel(model, device_ids=list(range(0,4))).cuda()
 model.eval()
 config = resolve_data_config({}, model=model)
 transform = create_transform(**config)
@@ -55,9 +56,11 @@ string = np.append(string, " ---start-----")
 string =["path","f","label","prob"]
 writer.writerow(string)
 f.close()
+f = open("s:/labels21.csv", 'a', newline='')
 for file in files:
-    print(filename)
+
     filename = os.fsdecode(file)
+    print(f'img21 -{filename}')
     if filename.endswith(".png") or filename.endswith(".jpg"):
         img = Image.open(filename).convert('RGB')
         tensor = transform(img).unsqueeze(0)  # transform and add batch dimension
@@ -82,7 +85,7 @@ for file in files:
                     top_class_description = semantic_softmax_processor.tree['class_description'][top_class_name]
                     lbls.append(top_class_description)
                     probs.append(top1_prob)
-        print(f"labels found {lbls}.{probs}")
+        #print(f"labels found {lbls}.{probs}")
         for i in range(0,len(lbls)):
             labels = lbls[i]
             prob = "{:.2f}%".format(float(probs[i]) * 100)
@@ -91,10 +94,10 @@ for file in files:
             string = np.append(string, os.path.basename(filename))
             string = np.append(string, labels)
             string = np.append(string, prob)
-            f = open("s:/labels21.csv", 'a', newline='')
+
             writer = csv.writer(f)
             writer.writerow(string)
-            f.close()
+f.close()
 
 ############## Visualization ##############
 # import matplotlib
