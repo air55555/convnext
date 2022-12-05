@@ -23,6 +23,8 @@ import urllib
 import time
 from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
+from transformers import ViTModel,ViTFeatureExtractor, ViTForImageClassification
+
 def check_image(filename,transform):
     matches = ["pen", "ink"]
 
@@ -171,19 +173,21 @@ prob_lim = float(sys.argv[1])
 path = sys.argv[2]
 # imagenet_labels = json.load(open('label_to_words.json'))
 #create_vit_model()
-
-model, feature_extractor,device = create_bert_model()
+#model, feature_extractor,device = create_bert_model()
 #convnext_model, transform, convnext_device = create_convnext_model()
 #labels = convnext_model.pretrained_cfg['labels']
 #top_k = min(len(labels), 5)
-
+md_name = "google/vit-huge-patch14-224-in21k"
+feature_extractor = ViTFeatureExtractor.from_pretrained(md_name)
+model = ViTModel.from_pretrained(md_name)
+model.eval()
 
 files = glob.glob(path)
 #files = glob.glob("S:/good_imgs/1/*.jpg")#s:/content/*.jpg
 
 #files.sort(key=os.path.getmtime,reverse=True)
 
-f = open("s:/labels_hf_beit.csv", 'w', newline='')
+f = open("s:/labels_hf_vit.csv", 'w', newline='')
 writer = csv.writer(f)
 
 string = str(datetime.now()).replace(" ", "|")
@@ -197,9 +201,21 @@ for file in files:
     #if filename.endswith(".png") or filename.endswith(".jpg"):
     image = PIL.Image.open(filename)
     inputs = feature_extractor(images=image, return_tensors="pt")
-    inputs = inputs.to(device)
     outputs = model(**inputs)
-    logits = outputs.logits
+
+    encodings = feature_extractor(images=image, return_tensors="pt")
+    pixel_values = encodings["pixel_values"]
+    outputs = model(pixel_values)
+
+    logits = outputs.last_hidden_state#.logits
+    # model predicts one of the 1000 ImageNet classes
+    predicted_class_idx = logits.argmax(-1).item()
+    print("Predicted class:", model.config.id2label[predicted_class_idx])
+    #
+    # inputs = feature_extractor(images=image, return_tensors="pt")
+    # inputs = inputs.to(device)
+    # outputs = model(**inputs)
+    # logits = outputs.logits
     # model predicts one of the 21,841 ImageNet-22k classes
     predicted_class_idx = logits.argmax(-1).item()
     top5 = torch.topk(logits, k=15)
