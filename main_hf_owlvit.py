@@ -183,20 +183,19 @@ if torch.cuda.device_count() > 1:
     print("Let's use", torch.cuda.device_count(), "GPUs!")
 has_cuda = torch.cuda.is_available()
 device = torch.device('cpu' if not has_cuda else 'cuda')
-url = "http://images.cocodataset.org/val2017/000000039769.jpg"
-#image = Image.open(requests.get(url, stream=True).raw)
-
-feature_extractor = AutoFeatureExtractor.from_pretrained("microsoft/conditional-detr-resnet-50")
-model = ConditionalDetrForObjectDetection.from_pretrained("microsoft/conditional-detr-resnet-50")
+#device ='cuda'
+device = 'cpu'
 
 
+from transformers import OwlViTProcessor, OwlViTForObjectDetection
 
+mn="google/owlvit-base-patch16"
+mn="google/owlvit-large-patch14"
+# large doesnt fit to 3060 gpu "google/owlvit-large-patch14"
+processor = OwlViTProcessor.from_pretrained(mn)
+model = OwlViTForObjectDetection.from_pretrained(mn )#
 
-#create_vit_model()
-#model, feature_extractor,device = create_bert_model()
-#convnext_model, transform, convnext_device = create_convnext_model()
-#labels = convnext_model.pretrained_cfg['labels']
-#top_k = min(len(labels), 5)
+texts = [["nude", "nude body", "nude picture","nudes"]]
 
 model.eval()
 model.to(device)
@@ -218,23 +217,37 @@ for file in files:
     print(f' Hug Face -{filename}')
     #if filename.endswith(".png") or filename.endswith(".jpg"):
     image = PIL.Image.open(filename)
-    inputs = feature_extractor(images=image, return_tensors="pt")
+    inputs = processor(text=texts, images=image, return_tensors="pt")
+
     inputs = inputs.to(device)
     outputs = model(**inputs)
 
-    # convert outputs (bounding boxes and class logits) to COCO API
-    target_sizes = torch.tensor([image.size[::-1]])
-    results = feature_extractor.post_process(outputs, target_sizes=target_sizes)[0]
+    # Target image sizes (height, width) to rescale box predictions [batch_size, 2]
+    target_sizes = torch.Tensor([image.size[::-1]])
+    target_sizes = target_sizes.to(device)
+    # Convert outputs (bounding boxes and class logits) to COCO API
+    results = processor.post_process(outputs=outputs, target_sizes=target_sizes)
 
-    for score, label, box in zip(results["scores"], results["labels"], results["boxes"]):
+    i = 0  # Retrieve predictions for the first image for the corresponding text queries
+    text = texts[i]
+    boxes, scores, labels = results[i]["boxes"], results[i]["scores"], results[i]["labels"]
+
+    # Print detected objects and rescaled box coordinates
+    score_threshold = 0.1
+    for box, score, label in zip(boxes, scores, labels):
         box = [round(i, 2) for i in box.tolist()]
-        # let's only keep detections with score > 0.7
-        if score > prob_lim:
-            print(
-                f"Detected {model.config.id2label[label.item()]} with confidence "
-                f"{round(score.item(), 3)} at location {box}"
-            )
-            continue
+        if score >= prob_lim:
+            prob= round(score.item(), 3)
+            prob = "{:.2f}%".format(score * 100)
+            string = filename
+            string = np.append(string, os.path.basename(filename))
+            string = np.append(string, text[label])
+            string = np.append(string, prob)
+            # f = open("s:/labels.csv", 'a', newline='')
+            writer = csv.writer(f)
+            writer.writerow(string)
+            print(f"Detected {text[label]} with confidence {round(score.item(), 3)} at location {box}")
+
     #
     # inputs = feature_extractor(images=image, return_tensors="pt")
     # inputs = inputs.to(device)
