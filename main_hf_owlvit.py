@@ -184,13 +184,14 @@ if torch.cuda.device_count() > 1:
 has_cuda = torch.cuda.is_available()
 device = torch.device('cpu' if not has_cuda else 'cuda')
 #device ='cuda'
-device = 'cpu'
+#device = 'cpu'
 
 
 from transformers import OwlViTProcessor, OwlViTForObjectDetection
 
 mn="google/owlvit-base-patch16"
-mn="google/owlvit-large-patch14"
+mn="google/owlvit-base-patch32"
+#mn="google/owlvit-large-patch14"
 # large doesnt fit to 3060 gpu "google/owlvit-large-patch14"
 processor = OwlViTProcessor.from_pretrained(mn)
 model = OwlViTForObjectDetection.from_pretrained(mn )#
@@ -214,7 +215,7 @@ writer.writerow(string)
 categories = model.config.id2label
 for file in files:
     filename = os.fsdecode(file)
-    print(f' Hug Face -{filename}')
+    print(f' Hug Face vit -{filename}')
     #if filename.endswith(".png") or filename.endswith(".jpg"):
     image = PIL.Image.open(filename)
     inputs = processor(text=texts, images=image, return_tensors="pt")
@@ -244,7 +245,7 @@ for file in files:
             string = np.append(string, text[label])
             string = np.append(string, prob)
             # f = open("s:/labels.csv", 'a', newline='')
-            writer = csv.writer(f)
+
             writer.writerow(string)
             print(f"Detected {text[label]} with confidence {round(score.item(), 3)} at location {box}")
 

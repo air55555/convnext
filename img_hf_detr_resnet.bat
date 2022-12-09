@@ -1,0 +1,1 @@
+C:\Users\LRS\PycharmProjects\yolov7\venv\Scripts\python.exe C:/Users/LRS/PycharmProjects/convnext/main_hf_DETR_RESNET.py 0.3 C:/Users/LRS/PycharmProjects/stable-diffusion/generated-images/bible_live/samples/*.jpg

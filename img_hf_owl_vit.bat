@@ -1,1 +1,1 @@
-C:/Users/LRS/PycharmProjects/convnext/main_hf_owlvit.py 0.01 C:/Users/LRS/PycharmProjects/stable-diffusion/generated-images/bible_live/samples/*.jpg
+C:\Users\LRS\PycharmProjects\yolov7\venv\Scripts\python.exe C:/Users/LRS/PycharmProjects/convnext/main_hf_owlvit.py 0.01 C:/Users/LRS/PycharmProjects/stable-diffusion/generated-images/bible_live/samples/*.jpg
