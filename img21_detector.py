@@ -60,7 +60,7 @@ f = open("s:/labels21.csv", 'a', newline='')
 for file in files:
 
     filename = os.fsdecode(file)
-    print(f'img21 -{filename}')
+    print(f'img21 {prob_lim} -{filename}')
     if filename.endswith(".png") or filename.endswith(".jpg"):
         img = Image.open(filename).convert('RGB')
         tensor = transform(img).unsqueeze(0)  # transform and add batch dimension

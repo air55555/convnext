@@ -193,7 +193,7 @@ writer.writerow(string)
 categories = model.config.id2label
 for file in files:
     filename = os.fsdecode(file)
-    print(f' Hug Face beit-{filename}')
+    print(f' Hug Face beit {prob_lim}-{filename}')
     #if filename.endswith(".png") or filename.endswith(".jpg"):
     image = PIL.Image.open(filename)
     inputs = feature_extractor(images=image, return_tensors="pt")

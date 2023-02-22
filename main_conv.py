@@ -123,7 +123,7 @@ writer.writerow(string)
 
 for file in files:
     filename = os.fsdecode(file)
-    print(f'conv -{filename}')
+    print(f'conv {prob_lim}-{filename}')
     if filename.endswith(".png") or filename.endswith(".jpg"):
         top5 = get_description(filename)
             #blablabla

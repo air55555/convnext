@@ -8,11 +8,15 @@ from datetime import datetime, time
 import csv
 import numpy as np
 import os
+from numba import cuda as ncuda
+
+
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import matplotlib.pyplot as plt
 import PIL
 from PIL import Image
+from torch import cuda
 import json
 from timm import create_model
 import torch
@@ -25,144 +29,65 @@ from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
 from transformers import ViTModel,ViTFeatureExtractor, ViTForImageClassification
 
-def check_image(filename,transform):
-    matches = ["pen", "ink"]
+def get_less_used_gpu(gpus=None, debug=False):
+    """Inspect cached/reserved and allocated memory on specified gpus and return the id of the less used device"""
+    if gpus is None:
+        warn = 'Falling back to default: all gpus'
+        gpus = range(cuda.device_count())
+    elif isinstance(gpus, str):
+        gpus = [int(el) for el in gpus.split(',')]
+
+    # check gpus arg VS available gpus
+    sys_gpus = list(range(cuda.device_count()))
+    warn = f'WARNING: Specified {len(gpus)} gpus, but only {cuda.device_count()} available. Falling back to default: all gpus.\nIDs:\t{list(gpus)}'
+
+    if len(gpus) > len(sys_gpus):
+        gpus = sys_gpus
+        warn = f'WARNING: Specified {len(gpus)} gpus, but only {cuda.device_count()} available. Falling back to default: all gpus.\nIDs:\t{list(gpus)}'
+    elif set(gpus).difference(sys_gpus):
+        # take correctly specified and add as much bad specifications as unused system gpus
+        available_gpus = set(gpus).intersection(sys_gpus)
+        unavailable_gpus = set(gpus).difference(sys_gpus)
+        unused_gpus = set(sys_gpus).difference(gpus)
+        gpus = list(available_gpus) + list(unused_gpus)[:len(unavailable_gpus)]
+        warn = f'GPU ids {unavailable_gpus} not available. Falling back to {len(gpus)} device(s).\nIDs:\t{list(gpus)}'
+
+    cur_allocated_mem = {}
+    cur_cached_mem = {}
+    max_allocated_mem = {}
+    max_cached_mem = {}
+    for i in gpus:
+        cur_allocated_mem[i] = cuda.memory_allocated(i)
+        cur_cached_mem[i] = cuda.memory_reserved(i)
+        max_allocated_mem[i] = cuda.max_memory_allocated(i)
+        max_cached_mem[i] = cuda.max_memory_reserved(i)
+    min_allocated = min(cur_allocated_mem, key=cur_allocated_mem.get)
+    if debug:
+        print(warn)
+        print('Current allocated memory:', {f'cuda:{k}': v for k, v in cur_allocated_mem.items()})
+        print('Current reserved memory:', {f'cuda:{k}': v for k, v in cur_cached_mem.items()})
+        print('Maximum allocated memory:', {f'cuda:{k}': v for k, v in max_allocated_mem.items()})
+        print('Maximum reserved memory:', {f'cuda:{k}': v for k, v in max_cached_mem.items()})
+        print('Suggested GPU:', min_allocated)
+    return min_allocated
 
 
-    # Print top categories per image
-    top5_prob ,top5_catid = get_description(filename,transform)
-    for i in range(top5_prob.size(0)):
-        print(categories[top5_catid[i]], top5_prob[i].item())
-    # blablabla
+def free_memory(to_delete: list, debug=False):
+    import gc
+    import inspect
+    calling_namespace = inspect.currentframe().f_back
+    if debug:
+        print('Before:')
+        get_less_used_gpu(debug=True)
 
-    string = filename
-    for i in range(5):
-        labels = categories[top5_catid[i]]
-            #imagenet_labels[str(int(top5_indices[i]))]
-        pr= float(top5_prob[i].item())*100
-            #float(top5_prob[i]) * 100
+    for _var in to_delete:
+        calling_namespace.f_locals.pop(_var, None)
+        gc.collect()
+        cuda.empty_cache()
 
-        prob = "{:.2f}%".format(pr)
-            #float(top5_prob[i]) * 100)
-        if pr<60 :
-            return 0
-        else:
-            if any(x in labels for x in matches):
-                return 0
-            else:
-                return pr
-        print(labels, prob)
-        string = np.append(string, labels)
-        string = np.append(string, prob)
-
-    f = open("s:/content/labels.csv", 'a', newline='')
-    writer = csv.writer(f)
-    writer.writerow(string)
-    f.close()
- 
-def create_vit_model():
-    from transformers import ViTFeatureExtractor, ViTModel
-    from PIL import Image
-    import requests
-    url = 'http://images.cocodataset.org/val2017/000000039769.jpg'
-    image = Image.open(requests.get(url, stream=True).raw)
-    md_name = "google/vit-huge-patch14-224-in21k"#'google/vit-base-patch32-224-in21k'
-    feature_extractor = ViTFeatureExtractor.from_pretrained(md_name)
-    model = ViTModel.from_pretrained(md_name)
-    inputs = feature_extractor(images=image, return_tensors="pt")
-    outputs = model(**inputs)
-    last_hidden_state = outputs.last_hidden_state
-def create_bert_model():
-    from transformers import BeitFeatureExtractor, BeitForImageClassification
-    from PIL import Image
-    import requests
-    if torch.cuda.device_count() > 1:
-      print("Let's use", torch.cuda.device_count(), "GPUs!")
-    has_cuda = torch.cuda.is_available()
-    device = torch.device('cpu' if not has_cuda else 'cuda')
-    #'microsoft/beit-base-patch16-224-pt22k-ft22k'
-    md= "microsoft/beit-large-patch16-224-pt22k-ft22k"
-    feature_extractor = BeitFeatureExtractor.from_pretrained(md)
-    model = BeitForImageClassification.from_pretrained(md)
-    model.eval()
-    model.to(device)
-    return model,feature_extractor,device
-
-def create_convnext_model():
-    ordinal='0'
-    if torch.cuda.device_count() > 1:
-      print("Let's use", torch.cuda.device_count(), "GPUs!")
-    has_cuda = torch.cuda.is_available()
-    device = torch.device('cpu' if not has_cuda else 'cuda')
-    #device = torch.device('cuda:{}'.format(ordinal))
-    #model_name = "convnext_xlarge_in22k"
-
-    # !!! Working init model from transformers import AutoFeatureExtractor, ViTForImageClassification
-    # from PIL import Image
-    # import requests
-    # feature_extractor = AutoFeatureExtractor.from_pretrained('facebook/deit-tiny-patch16-224')
-    # model = ViTForImageClassification.from_pretrained('facebook/deit-tiny-patch16-224')
-
-    # from transformers import CLIPProcessor, CLIPModel
-    # model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
-    # processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
-
-    model_name = "vit_huge_patch14_224_in21k"
-    model_name = "hf_hub:timm/vit_large_patch14_clip_224.openai_ft_in12k"
-    model_name = 'hf_hub:nateraw/resnet50-oxford-iiit-pet'
-
-    #model_name = "hf_hub:timm/eca_nfnet_l0"
-    #model_name = "vit_base_patch16_224"
-    # https://rwightman.github.io/pytorch-image-models/models/noisy-student/
-    #model_name = "tf_efficientnet_b0_ns"
-    #model_name = "convnext_xlarge_384_in22ft1k"
-    #device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print("device for convnext = ", device)
-    #device='cuda'
-    # create a ConvNeXt model : https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/convnext.py
-   # model = create_model(model_name, pretrained=True).to(device)
-    #labls= model.pretrained_cfg['labels']
-   # model.eval()
-
-    # Create Transform
-  #  transform = create_transform(**resolve_data_config(model.pretrained_cfg, model=model))
-
-    # Get the labels from the model config
-
-
-
-    return model,transform,device
-def get_description(fname,transform):
-
-    img = PIL.Image.open(fname)
-    x = transform(img).unsqueeze(0)
-    out = convnext_model(x)
-
-    # Apply softmax to get predicted probabilities for each class
-    probabilities = torch.nn.functional.softmax(out[0], dim=0)
-    # Grab the values and indices of top 5 predicted classes
-    values, indices = torch.topk(probabilities, top_k)
-
-    # Prepare a nice dict of top k predictions
-    predictions = [
-        {"label": labels[i], "score": v.item()}
-        for i, v in zip(indices, values)
-    ]
-    print(predictions)
-    #img_tensor = transform(img).unsqueeze(0).to(convnext_device)
-
-    # inference
-   # with torch.no_grad():
-    #    out = convnext_model(img_tensor)
-    # probabilities = torch.nn.functional.softmax(out[0], dim=0)
-    # top5_prob, top5_catid = torch.topk(probabilities, 5)
-    return top5_prob ,top5_catid
-
-
-    output = torch.softmax(convnext_model(img_tensor), dim=1)
-    top5 = torch.topk(output, k=5)
-
-    return top5
+    if debug:
+        print('After:')
+        get_less_used_gpu(debug=True)
 
 # url, filename = (
 #     "https://raw.githubusercontent.com/pytorch/hub/master/imagenet_classes.txt", "imagenet_classes.txt")
@@ -178,6 +103,31 @@ from transformers import AutoFeatureExtractor, ConditionalDetrForObjectDetection
 import torch
 from PIL import Image
 import requests
+import pandas as pd
+
+files = glob.glob(path)
+if os.path.exists("s:/files_hf_vit.csv"):
+    files_list = open("s:/files_hf_vit.csv", 'a', newline='')
+    writer_files_list = csv.writer(files_list)
+    df_file_list = pd.read_csv("s:/files_hf_vit.csv", header=0)
+else:
+    files_list = open("s:/files_hf_vit.csv", 'w', newline='')
+    string = ["path", "f"]#, "label", "prob"]
+    writer_files_list = csv.writer(files_list)
+    writer_files_list.writerow(string)
+    files_list.close()
+    df_file_list = pd.read_csv("s:/files_hf_vit.csv", header=0)
+
+    f = open("s:/labels_hf_vit.csv", 'w', newline='')
+    writer = csv.writer(f)
+    string = str(datetime.now()).replace(" ", "|")
+    string = np.append(string, " ---start-----")
+    string =["path","f","label","prob"]
+    writer.writerow(string)
+    f.close()
+if len(files)<=len(df_file_list):
+    print("All files procesed")
+    exit(0)
 
 if torch.cuda.device_count() > 1:
     print("Let's use", torch.cuda.device_count(), "GPUs!")
@@ -186,43 +136,48 @@ device = torch.device('cpu' if not has_cuda else 'cuda')
 #device ='cuda'
 #device = 'cpu'
 
-
+#get_less_used_gpu([0],debug=True)
+#free_memory([0],debug=True)
 from transformers import OwlViTProcessor, OwlViTForObjectDetection
 
 mn="google/owlvit-base-patch16"
 mn="google/owlvit-base-patch32"
 #mn="google/owlvit-large-patch14"
 # large doesnt fit to 3060 gpu "google/owlvit-large-patch14"
+texts = [["nude", "nude body", "nude picture","nudes"]]
 processor = OwlViTProcessor.from_pretrained(mn)
 model = OwlViTForObjectDetection.from_pretrained(mn )#
-
-texts = [["nude", "nude body", "nude picture","nudes"]]
-
 model.eval()
 model.to(device)
-files = glob.glob(path)
-#files = glob.glob("S:/good_imgs/1/*.jpg")#s:/content/*.jpg
 
-#files.sort(key=os.path.getmtime,reverse=True)
-
-f = open("s:/labels_hf_vit.csv", 'w', newline='')
+f = open("s:/labels_hf_vit.csv", 'a', newline='')
 writer = csv.writer(f)
-
-string = str(datetime.now()).replace(" ", "|")
-string = np.append(string, " ---start-----")
-string =["path","f","label","prob"]
-writer.writerow(string)
 categories = model.config.id2label
 for file in files:
     filename = os.fsdecode(file)
+    df_file = df_file_list.query('f=="'+os.path.basename(filename)+'"')
+    if len(df_file)>0:
+        continue
+
     print(f' Hug Face vit -{filename}')
     #if filename.endswith(".png") or filename.endswith(".jpg"):
     image = PIL.Image.open(filename)
     inputs = processor(text=texts, images=image, return_tensors="pt")
 
     inputs = inputs.to(device)
-    outputs = model(**inputs)
-
+    try:
+        outputs = model(**inputs)
+    except Exception as e:
+        #free_memory([0],debug=True)
+        #ncuda.select_device(0)
+        #ncuda.close()
+        #ncuda.select_device(0)
+        #processor = OwlViTProcessor.from_pretrained(mn)
+       # model = OwlViTForObjectDetection.from_pretrained(mn)  #
+        #model.eval()
+       #model.to(device)
+        #continue
+        exit(-1)
     # Target image sizes (height, width) to rescale box predictions [batch_size, 2]
     target_sizes = torch.Tensor([image.size[::-1]])
     target_sizes = target_sizes.to(device)
@@ -248,7 +203,9 @@ for file in files:
 
             writer.writerow(string)
             print(f"Detected {text[label]} with confidence {round(score.item(), 3)} at location {box}")
-
+    string = filename
+    string = np.append(string, os.path.basename(filename))
+    writer_files_list.writerow(string)
     #
     # inputs = feature_extractor(images=image, return_tensors="pt")
     # inputs = inputs.to(device)
@@ -260,4 +217,3 @@ f.close()
     #time.sleep(5)
 #plt.imshow(img)
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
